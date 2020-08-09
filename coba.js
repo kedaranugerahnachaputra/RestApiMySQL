@@ -5,7 +5,10 @@ const cors = require("cors")
 const app = express() 
 const md5 = require("md5")
 const moment = require("moment")
-upload = require("express-fileupload");  
+upload = require("express-fileupload")
+const { response } = require('express')
+const Cryptr = require("cryptr")
+const crypt = new Cryptr("140533601726")  
 
 app.use(upload())   
 app.use(bodyParser.json())  
@@ -26,7 +29,59 @@ mysqlConnection.connect((err) => {
         console.log('DB connection failed \n Error : ' + JSON.stringify(err, undefined, 2)); 
 }); 
 
-app.get('/karyawan',(req,res)=>{
+validateToken = () => {
+    return (req, res, next) => {
+        if (!req.get('Token')) {
+            res.json({
+                message: 'Access Forbidden'
+            })
+        } else {
+            let token  = req.get('Token')
+            let decryptToken = crypt.decrypt(token)
+            let sql = 'SELECT * FROM keryawan WHERE ?'
+
+            let param = { id_karyawan: decryptToken}
+
+            mysqlConnection.query(sql, param, (error, result) => {
+                if (error) throw error
+                if (result.length > 0) {
+                    next()
+                } else {
+                    res.json({
+                        message: 'Invalid Token'
+                    })
+                }
+            })
+        }
+
+    }
+}
+
+app.post('/karyawan/auth', (req, res) => {
+    let param = [
+        req.body.username, 
+        md5(req.body.password) 
+    ]
+    let sql = 'SELECT * FROM keryawan WHERE username = ? and password = ?'
+
+    mysqlConnection.query(sql, param, (error, result) => {
+        if (error) throw error
+
+        if (result.length > 0) {
+            res.json({
+                message: 'Logged',
+                token: crypt.encrypt(result[0].id_karyawan),
+                data: result
+            })
+        } else {
+            res.json({
+                message: 'Invalid username/password'
+            })
+        }
+    })
+})
+
+app.get('/karyawan',validateToken(),(req,res)=>{
     mysqlConnection.query('SELECT * FROM keryawan',(err, rows, fields)=>{
         let response = null
         if (err) {
@@ -43,7 +98,7 @@ app.get('/karyawan',(req,res)=>{
     });
 });
 
-app.get('/karyawan/:id',(req,res)=>{
+app.get('/karyawan/:id',validateToken(),(req,res)=>{
     mysqlConnection.query('SELECT * FROM keryawan WHERE id_karyawan=?',[req.params.id],(err, rows, fields)=>{
         let response = null
         if (err) {
@@ -60,7 +115,7 @@ app.get('/karyawan/:id',(req,res)=>{
     });
 });
 
-app.delete('/karyawan/:id',(req,res)=>{
+app.delete('/karyawan/:id',validateToken(),(req,res)=>{
     mysqlConnection.query('SELECT * FROM keryawan WHERE id_karyawan = ?',[req.params.id],(err, rows, fields)=>{
         let response = null
             if (err) {
@@ -76,14 +131,13 @@ app.delete('/karyawan/:id',(req,res)=>{
     });
 });
 
-app.post('/karyawan', (req, res) => {
+app.post('/karyawan',validateToken(), (req, res) => {
     let id = req.body.id;
     let nama = req.body.nama;
     let alamat = req.body.alamat;
     let kontak = req.body.kontak;
     let username = req.body.username;
     let password = md5(req.body.password);
-
 
     mysqlConnection.query('INSERT INTO keryawan (id_karyawan,nama_karyawan,alamat_karyawan,kontak,username,password) VALUES(?,?,?,?,?,?)'
         , [id, nama, alamat, kontak, username, password], (err, rows, fields) => {
@@ -101,7 +155,7 @@ app.post('/karyawan', (req, res) => {
         });
 });
 
-app.put('/karyawan', (req, res) => {
+app.put('/karyawan',validateToken(), (req, res) => {
     let id = req.body.id;
     let nama = req.body.nama;
     let alamat = req.body.alamat;
@@ -125,7 +179,7 @@ app.put('/karyawan', (req, res) => {
         });
 });
 
-app.get('/pelanggan',(req,res)=>{
+app.get('/pelanggan',validateToken(),(req,res)=>{
     mysqlConnection.query('SELECT * FROM pelanggan',(err, rows, fields)=>{
         let response = null
         if (err) {
@@ -142,7 +196,7 @@ app.get('/pelanggan',(req,res)=>{
     });
 });
 
-app.get('/pelanggan/:id',(req,res)=>{
+app.get('/pelanggan/:id',validateToken(),(req,res)=>{
     mysqlConnection.query('SELECT * FROM pelanggan WHERE id_pelanggan=?',[req.params.id],(err, rows, fields)=>{
         let response = null
         if (err) {
@@ -159,7 +213,7 @@ app.get('/pelanggan/:id',(req,res)=>{
     });
 });
 
-app.delete('/pelanggan/:id',(req,res)=>{
+app.delete('/pelanggan/:id',validateToken(),(req,res)=>{
     mysqlConnection.query('SELECT * FROM pelanggan WHERE id_pelanggan = ?',[req.params.id],(err, rows, fields)=>{
         let response = null
             if (err) {
@@ -175,7 +229,7 @@ app.delete('/pelanggan/:id',(req,res)=>{
     });
 });
 
-app.post('/pelanggan', (req, res) => {
+app.post('/pelanggan',validateToken(), (req, res) => {
     let id = req.body.id;
     let nama = req.body.nama;
     let alamat = req.body.alamat;
@@ -197,7 +251,7 @@ app.post('/pelanggan', (req, res) => {
         });
 });
 
-app.put('/pelanggan', (req, res) => {
+app.put('/pelanggan',validateToken(), (req, res) => {
     let id = req.body.id;
     let nama = req.body.nama;
     let alamat = req.body.alamat;
@@ -219,7 +273,7 @@ app.put('/pelanggan', (req, res) => {
         });
 });
 
-app.get('/mobil', (req, res) => {
+app.get('/mobil',validateToken(), (req, res) => {
     mysqlConnection.query('SELECT * FROM mobil ORDER BY id_mobil', (err, rows, fields) => {
         let response = null
         if (err) {
@@ -236,7 +290,7 @@ app.get('/mobil', (req, res) => {
     });
 });
 
-app.get('/mobil/:id', (req, res) => {
+app.get('/mobil/:id',validateToken(), (req, res) => {
     mysqlConnection.query('SELECT * FROM mobil WHERE id_mobil = ?', [req.params.id], (err, rows, fields) => {
         let response = null
         if (err) {
@@ -253,7 +307,7 @@ app.get('/mobil/:id', (req, res) => {
     });
 });
 
-app.delete('/mobil/:id', (req, res) => {
+app.delete('/mobil/:id',validateToken(), (req, res) => {
     mysqlConnection.query('DELETE FROM mobil where id_mobil = ?', [req.params.id], (err, rows, fields) => {
         let response = null
         if (err) {
@@ -269,7 +323,7 @@ app.delete('/mobil/:id', (req, res) => {
     });
 });
 
-app.post('/mobil', (req, res) => {
+app.post('/mobil',validateToken(), (req, res) => {
     let id = req.body.id;
     let nomor = req.body.nomor;
     let merk = req.body.merk;
@@ -305,7 +359,7 @@ app.post('/mobil', (req, res) => {
     }
 });
 
-app.put('/mobil', (req, res) => {
+app.put('/mobil',validateToken(), (req, res) => {
     let id = req.body.id;
     let nomor = req.body.nomor;
     let merk = req.body.merk;
@@ -341,7 +395,7 @@ app.put('/mobil', (req, res) => {
 }
 });
 
-app.post("/sewa",(req,res)=>{
+app.post("/sewa",validateToken(),(req,res)=>{
     var a = moment(req.body.tgl_sewa) 
     var b = moment(req.body.tgl_kembali) 
     var hari = b.diff(a, 'days')
@@ -380,7 +434,7 @@ app.post("/sewa",(req,res)=>{
     })
 })
 
-app.get("/sewa",(req,res)=>{
+app.get("/sewa",validateToken(),(req,res)=>{
     let sql = "select * from sewa"
 
     mysqlConnection.query(sql,(err,rows,field)=>{
@@ -399,7 +453,7 @@ app.get("/sewa",(req,res)=>{
     })
 })
 
-app.get("/detail_sewa",(req,res)=>{
+app.get("/detail_sewa",validateToken(),(req,res)=>{
     let sql = "SELECT s.id_sewa,p.id_pelanggan,p.nama_pelanggan,m.id_mobil,m.nomor_mobil,m.merk,k.id_karyawan,k.nama_karyawan " +
     "FROM sewa s JOIN pelanggan p ON s.id_pelanggan = p.id_pelanggan "+
     "JOIN mobil m ON s.id_mobil = m.id_mobil " +
@@ -421,7 +475,7 @@ app.get("/detail_sewa",(req,res)=>{
     })
 })
 
-app.get("/sewa/:id",(req,res)=>{
+app.get("/sewa/:id",validateToken(),(req,res)=>{
     let data = {
         id_pelanggan: req.params.id
     }
@@ -447,7 +501,7 @@ app.get("/sewa/:id",(req,res)=>{
     })
 })
 
-app.delete("/sewa/:id",(req,res)=>{
+app.delete("/sewa/:id",validateToken(),(req,res)=>{
     let data = {
         id_sewa: req.params.id
     }

@@ -4,6 +4,8 @@ const cors = require("cors")
 const mysql = require("mysql")
 const moment = require("moment")
 const md5 = require("md5")
+const Cryptr = require("cryptr")
+const crypt = new Cryptr("140533601726") 
 
 const app = express()
 app.use(cors())
@@ -25,7 +27,35 @@ db.connect(error => {
     }
 })
 
-app.get("/siswa", (req, res) => {
+validateToken = () => {
+    return (req, res, next) => {
+        if (!req.get("Token")) {
+            res.json({
+                message: "Access Forbidden"
+            })
+        } else {
+            let token  = req.get("Token")
+            let decryptToken = crypt.decrypt(token)
+            let sql = "select * from user where ?"
+
+            let param = { id_user: decryptToken}
+
+            db.query(sql, param, (error, result) => {
+                if (error) throw error
+                if (result.length > 0) {
+                    next()
+                } else {
+                    res.json({
+                        message: "Invalid Token"
+                    })
+                }
+            })
+        }
+
+    }
+}
+
+app.get("/siswa",validateToken(), (req, res) => {
     let sql = "select * from siswa"
 
     db.query(sql, (error, result) => {
@@ -44,7 +74,7 @@ app.get("/siswa", (req, res) => {
     })
 })
 
-app.get("/siswa/:id", (req, res) => {
+app.get("/siswa/:id",validateToken(), (req, res) => {
     let data = {
         id_siswa: req.params.id
     }
@@ -66,8 +96,7 @@ app.get("/siswa/:id", (req, res) => {
     })
 })
 
-app.post("/siswa", (req,res) => {
-
+app.post("/siswa",validateToken(), (req,res) => {
     let data = {
         nis: req.body.nis,
         nama_siswa: req.body.nama_siswa,
@@ -92,7 +121,7 @@ app.post("/siswa", (req,res) => {
     })
 })
 
-app.put("/siswa", (req,res) => {
+app.put("/siswa",validateToken(), (req,res) => {
 
     let data = [
         {
@@ -124,7 +153,7 @@ app.put("/siswa", (req,res) => {
     })
 })
 
-app.delete("/siswa/:id", (req,res) => {
+app.delete("/siswa/:id",validateToken(), (req,res) => {
     let data = {
         id_siswa: req.params.id
     }
@@ -148,7 +177,7 @@ app.delete("/siswa/:id", (req,res) => {
 
 // ep baru
 
-app.get("/pelanggaran", (req, res) => {
+app.get("/pelanggaran",validateToken(), (req, res) => {
     let sql = "select * from pelanggaran"
 
     db.query(sql, (error, result) => {
@@ -167,7 +196,7 @@ app.get("/pelanggaran", (req, res) => {
     })
 })
 
-app.get("/pelanggaran/:id", (req, res) => {
+app.get("/pelanggaran/:id",validateToken(), (req, res) => {
     let data = {
         id_pelanggaran: req.params.id
     }
@@ -190,7 +219,7 @@ app.get("/pelanggaran/:id", (req, res) => {
     })
 })
 
-app.post("/pelanggaran", (req,res) => {
+app.post("/pelanggaran",validateToken(), (req,res) => {
 
     let data = {
         nama_pelanggaran : req.body.nama_pelanggaran,
@@ -214,7 +243,7 @@ app.post("/pelanggaran", (req,res) => {
     })
 })
 
-app.put("/pelanggaran", (req,res) => {
+app.put("/pelanggaran",validateToken(), (req,res) => {
 
     let data = [
         {
@@ -243,7 +272,7 @@ app.put("/pelanggaran", (req,res) => {
     })
 })
 
-app.delete("/pelanggaran/:id", (req,res) => {
+app.delete("/pelanggaran/:id",validateToken(), (req,res) => {
     let data = {
         id_pelanggaran: req.params.id
     }
@@ -267,7 +296,7 @@ app.delete("/pelanggaran/:id", (req,res) => {
 
 // ep baru 
 
-app.get("/user",(req,res)=>{
+app.get("/user",validateToken(),(req,res)=>{
     let sql = "select * from user"
 
     db.query(sql,(error,result)=>{
@@ -287,7 +316,7 @@ app.get("/user",(req,res)=>{
     })
 })
 
-app.get("/user/:id",(req,res)=>{
+app.get("/user/:id",validateToken(),(req,res)=>{
     let data = {
         id_user: req.params.id
     }
@@ -309,7 +338,7 @@ app.get("/user/:id",(req,res)=>{
     })
 })
 
-app.post("/user",(req,res)=>{
+app.post("/user",validateToken(),(req,res)=>{
     let data = {
         nama_user: req.body.nama_user,
         username: req.body.username,
@@ -334,7 +363,7 @@ app.post("/user",(req,res)=>{
     })
 })
 
-app.delete("/user/:id",(req,res)=>{
+app.delete("/user/:id",validateToken(),(req,res)=>{
     let data = {
         id_user: req.params.id
     }
@@ -357,7 +386,7 @@ app.delete("/user/:id",(req,res)=>{
     })
 })
 
-app.put("/user",(req,res)=>{
+app.put("/user",validateToken(),(req,res)=>{
     let data = [
         {
             nama_user: req.body.nama_user,
@@ -388,7 +417,7 @@ app.put("/user",(req,res)=>{
     })
 })
 
-app.post("/pelanggaran_siswa", (req,res) => {
+app.post("/pelanggaran_siswa",validateToken(), (req,res) => {
     let data = {
         id_siswa: req.body.id_siswa,
         id_user: req.body.id_user,
@@ -427,7 +456,7 @@ app.post("/pelanggaran_siswa", (req,res) => {
     })
 })
 
-app.get("/pelanggaran_siswa", (req,res) => {
+app.get("/pelanggaran_siswa",validateToken(), (req,res) => {
     let sql = "select p.id_pelanggaran_siswa, p.id_siswa,p.waktu, s.nis, s.nama_siswa, p.id_user, u.nama_user " +
      "from pelanggaran_siswa p join siswa s on p.id_siswa = s.id_siswa " +
      "join user u on p.id_user = u.id_user"
@@ -444,7 +473,7 @@ app.get("/pelanggaran_siswa", (req,res) => {
     })
 })
 
-app.get("/pelanggaran_siswa/:id_pelanggaran_siswa", (req,res) => {
+app.get("/pelanggaran_siswa/:id_pelanggaran_siswa",validateToken(), (req,res) => {
     let param = { id_pelanggaran_siswa: req.params.id_pelanggaran_siswa}
 
     let sql = "select p.nama_pelanggaran, p.poin " + 
@@ -464,7 +493,7 @@ app.get("/pelanggaran_siswa/:id_pelanggaran_siswa", (req,res) => {
     })
 })
 
-app.delete("/pelanggaran_siswa/:id_pelanggaran_siswa", (req, res) => {
+app.delete("/pelanggaran_siswa/:id_pelanggaran_siswa",validateToken(), (req, res) => {
     let param = { id_pelanggaran_siswa: req.params.id_pelanggaran_siswa}
 
     let sql = "delete from detail_pelanggaran_siswa where ?"
@@ -486,6 +515,30 @@ app.delete("/pelanggaran_siswa/:id_pelanggaran_siswa", (req, res) => {
         }
     })
 
+})
+
+app.post("/user/auth", (req, res) => {
+    let param = [
+        req.body.username, 
+        md5(req.body.password) 
+    ]
+    let sql = "select * from user where username = ? and password = ?"
+
+    db.query(sql, param, (error, result) => {
+        if (error) throw error
+
+        if (result.length > 0) {
+            res.json({
+                message: "Logged",
+                token: crypt.encrypt(result[0].id_user),
+                data: result
+            })
+        } else {
+            res.json({
+                message: "Invalid username/password"
+            })
+        }
+    })
 })
 
 app.listen(8000, () => {
